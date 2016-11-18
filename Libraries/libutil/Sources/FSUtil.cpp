@@ -22,6 +22,9 @@ GetDirectoryName(std::string const &path)
 {
     std::string::size_type pos = path.rfind('/');
     if (pos == std::string::npos) {
+        pos = path.rfind('\\');
+    }
+    if (pos == std::string::npos) {
         return std::string();
     } else if (pos == 0) {
         return "/";
@@ -34,6 +37,9 @@ std::string FSUtil::
 GetBaseName(std::string const &path)
 {
     std::string::size_type pos = path.rfind('/');
+    if (pos == std::string::npos) {
+        pos = path.rfind('\\');
+    }
     if (pos == std::string::npos) {
         return path;
     } else {
@@ -65,7 +71,13 @@ GetRelativePath(std::string const &path, std::string const &to)
     bool found = false;
     while (!found) {
         std::string::size_type npo = path.find('/', po);
+        if (npo == std::string::npos) {
+            npo = path.find('\\', po);
+        }
         std::string::size_type noo = to.find('/', oo);
+        if (noo == std::string::npos) {
+            noo = to.find('\\', oo);
+        }
 
         std::string spo = path.substr(po, (npo == std::string::npos ? path.size() : npo) - po);
         std::string soo = to.substr(oo, (noo == std::string::npos ? to.size() : noo) - oo);
@@ -83,8 +95,14 @@ GetRelativePath(std::string const &path, std::string const &to)
     }
 
     while (oo != std::string::npos && oo != to.size()) {
-        result += "../";
-        oo = to.find('/', oo + 1);
+        std::string::size_type woo = to.find('\\', oo + 1);
+        if (woo != std::string::npos) {
+            result += "..\\";
+        } else {
+            woo = to.find('/', oo + 1);
+            result += "../";
+        }
+        oo = woo;
     }
 
     if (po != std::string::npos && po != path.size()) {
@@ -155,7 +173,7 @@ IsFileExtension(std::string const &path, std::initializer_list<std::string> cons
 bool FSUtil::
 IsAbsolutePath(std::string const &path)
 {
-    return !path.empty() && path[0] == '/';
+    return !path.empty() && (path[0] == '/' || (path.size() >= 1 && path[1] == ':') || strcmp(path.c_str(), "\\\\?\\") == 0);
 }
 
 std::string FSUtil::
@@ -168,7 +186,11 @@ ResolveRelativePath(std::string const &path, std::string const &workingDirectory
     } else if (workingDirectory.empty()) {
         return path;
     } else {
-        return NormalizePath(workingDirectory + "/" + path);
+        if (workingDirectory.find('\\') != std::string::npos) {
+            return NormalizePath(workingDirectory + "\\" + path);
+        } else {
+            return NormalizePath(workingDirectory + "/" + path);
+        }
     }
 }
 
